@@ -1,0 +1,162 @@
+<!doctype html>
+<html>
+<head>
+  <title>ZoomSVG test</title>
+
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+  <script type="text/javascript" src="jquery.svg.js"></script>
+  <script type="text/javascript" src="jquery.scrollTo.min.js"></script>
+  
+  <script>
+  
+  
+$(document).ready(function(){
+  
+  var SVGMake = function(elem){
+    
+    var rootElem = elem;
+    
+    var zoomInit = $(elem).attr('data-zoom-initial') ? $(elem).attr('data-zoom-initial') : 1;
+    var zoomMin = $(elem).attr('data-zoom-min') ? $(elem).attr('data-zoom-min') : 1;
+    var zoomMax = $(elem).attr('data-zoom-max') ? $(elem).attr('data-zoom-max') : 2;
+    
+    var zoomCurrent = 1;
+    
+    var mySvg = null,
+    baseW = 0,
+    baseH = 0;
+    
+    var loadDone = function(svg, error) {
+      mySvg = svg;
+      var vbox = $(mySvg._svg).attr('enable-background').split(' ');
+      baseW = vbox[3], baseH = vbox[4];
+      zoom(zoomInit);
+    }
+    
+    var scrollTop = 0;
+    var scrollLeft = 0;
+    var recordScroll = function() {
+      scrollTop = ($(rootElem).scrollTop() / zoomCurrent) / (baseH - $(rootElem).height());
+      scrollLeft = ($(rootElem).scrollLeft() / zoomCurrent)  / (baseW - $(rootElem).width());
+      
+      if (scrollTop > 1) scrollTop = 1;
+      if (scrollLeft > 1) scrollLeft = 1;
+    };
+    
+    var changeSize = function(continueFunc) {
+      scrollLeft *= zoomCurrent;
+      scrollTop *= zoomCurrent;
+      
+      // var newScrollTop = zoomCurrent * (scrollTop * (baseH - $(rootElem).height()));
+      // var newScrollLeft = zoomCurrent * (scrollLeft * (baseW - $(rootElem).width()));
+          
+      $(mySvg.root()).animate({
+        width: baseW * zoomCurrent + 'px',
+        height: baseH * zoomCurrent + 'px'
+      }, 250, 'swing', function(){
+        // alert(zoomCurrent + ': ' + newScrollLeft + ',' + newScrollTop);
+        var w = (scrollLeft * 100) + '%',
+        h = (scrollTop * 100) + '%';
+        
+        alert(w + ',' + h);
+        
+        $(mySvg.root()).scrollTo(w, h);
+        if (!!continueFunc) continueFunc();
+      });
+    };
+    
+    var normaliseZoom = function() {
+      if (zoomCurrent < zoomMin) zoomCurrent = zoomMin;
+      if (zoomCurrent > zoomMax) zoomCurrent = zoomMax;
+    };
+    
+    var zoom = function(newZoom) {
+      recordScroll();
+      
+      zoomCurrent = newZoom;
+      normaliseZoom();
+      changeSize();
+      
+      $(mySvg._svg).find('.zoomlayer').each(function(){
+        var maxZoom = false;
+        if ($(this).attr('data-max-zoom')) {
+          maxZoom = $(this).attr('data-max-zoom');
+        }
+        var minZoom = false;
+        if ($(this).attr('data-min-zoom')) {
+          minZoom = $(this).attr('data-min-zoom');
+        }
+        
+        var hide = false;
+        if (maxZoom != false && zoomCurrent >= maxZoom) {
+          hide = true;
+        }
+        else if (minZoom != false && zoomCurrent < minZoom) {
+          hide = true;
+        }
+        
+        if (hide) {
+          $(this).animate({svgOpacity: 0}, 250, function(){ $(this).css('display', 'none'); });
+        }
+        else {
+          $(this).css({
+            'display': '',
+            svgOpacity: 0,
+          }).animate({svgOpacity: 1}, 250);
+        }
+      });
+    };
+    
+    var prepMap = function(svg) {
+      svg.load($(elem).attr('data-src'), {
+        onLoad: loadDone
+      });
+    }
+    
+    var zoomInAction = function() {
+      zoom(zoomCurrent *= 2);
+    };
+    var zoomOutAction = function() {
+      zoom(zoomCurrent /= 2);
+    };
+    
+    var zoomIn = $('<button />', {
+      text: 'zoom in'
+    });
+    zoomIn.click(zoomInAction);
+    var zoomOut = $('<button />', {
+      text: 'zoom out'
+    });
+    var scrollPos = $('<span />', {
+      'class': 'scrollPos', 
+      text: ''
+    });
+    zoomOut.click(zoomOutAction);
+    $(elem).after(zoomOut).after(zoomIn).after(scrollPos);
+  
+    $(elem).svg({ 
+      onLoad: prepMap
+    });
+    
+    $(elem).scroll(function(){
+      recordScroll();
+      $('.scrollPos').text(scrollLeft + ',' + scrollTop);
+    });
+    
+  };
+  
+  $('.svgmap').each(function(){
+    var make = new SVGMake(this);
+  });
+  
+});
+  
+  
+  </script>
+</head>
+<body>
+
+<div id="map" class="svgmap" data-src="maptest1.svg" data-zoom-initial="1" style="width: 400px; height: 400px; overflow: scroll;"></div>
+
+</body>
+</html>
